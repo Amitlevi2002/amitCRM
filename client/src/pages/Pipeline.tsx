@@ -74,7 +74,11 @@ export default function Pipeline() {
     });
 
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8, // Requires 8px movement to start drag, allowing tap/scroll otherwise
+            },
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })

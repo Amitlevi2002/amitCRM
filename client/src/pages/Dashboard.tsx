@@ -108,13 +108,13 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
                 {/* Recent Activities - Large */}
                 <Card className="xl:col-span-2 border-none shadow-sm rounded-3xl bg-white">
-                    <CardHeader className="flex flex-row items-center justify-between px-8 pt-8">
+                    <CardHeader className="flex flex-row items-center justify-between px-4 pt-4 md:px-8 md:pt-8">
                         <CardTitle className="text-xl font-bold">Recent Activities</CardTitle>
                         <Button variant="ghost" size="icon" className="rounded-full">
                             <MoreVertical size={20} className="text-slate-400" />
                         </Button>
                     </CardHeader>
-                    <CardContent className="px-8 pb-8">
+                    <CardContent className="px-4 pb-4 md:px-8 md:pb-8">
                         <div className="space-y-6">
                             {activitiesLoading ? (
                                 <p className="text-center text-slate-500 py-8">Loading activities...</p>
@@ -122,17 +122,17 @@ export default function Dashboard() {
                                 <p className="text-center text-slate-500 py-8">No recent activities.</p>
                             ) : (
                                 recentActivities.slice(0, 4).map((act: any, i: number) => (
-                                    <div key={i} className="flex items-center justify-between group cursor-pointer">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
+                                    <div key={i} className="flex items-center justify-between group cursor-pointer border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+                                        <div className="flex items-center gap-4 min-w-0">
+                                            <div className="w-12 h-12 bg-slate-50 rounded-2xl flex-shrink-0 flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
                                                 <Plus size={20} />
                                             </div>
-                                            <div>
-                                                <h4 className="font-semibold text-slate-900">{act.type}</h4>
-                                                <p className="text-sm text-slate-500">{act.outcome}</p>
+                                            <div className="min-w-0">
+                                                <h4 className="font-semibold text-slate-900 truncate">{act.type}</h4>
+                                                <p className="text-sm text-slate-500 truncate">{act.outcome}</p>
                                             </div>
                                         </div>
-                                        <span className="text-xs font-medium text-slate-400">
+                                        <span className="text-xs font-medium text-slate-400 flex-shrink-0 ml-2">
                                             {new Date(act.date).toLocaleDateString()}
                                         </span>
                                     </div>
@@ -141,7 +141,7 @@ export default function Dashboard() {
                         </div>
                         <Button
                             variant="ghost"
-                            className="w-full mt-8 text-primary font-semibold rounded-xl underline-offset-4 hover:underline"
+                            className="w-full mt-6 md:mt-8 text-primary font-semibold rounded-xl underline-offset-4 hover:underline"
                             onClick={() => navigate('/activities')}
                         >
                             View All Activities

@@ -208,17 +208,17 @@ export default function Contacts() {
             />
 
             <Card className="border-none shadow-sm rounded-3xl overflow-hidden bg-white">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-4">
-                    <div className="relative flex-1 max-w-sm">
+                <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="relative flex-1 w-full sm:max-w-sm">
                         <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <Input
                             placeholder="Filter by name..."
                             value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
                             onChange={(event: React.ChangeEvent<HTMLInputElement>) => table.getColumn('name')?.setFilterValue(event.target.value)}
-                            className="pl-10 h-10 border-slate-200 rounded-xl"
+                            className="pl-10 h-10 border-slate-200 rounded-xl w-full"
                         />
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                    <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2 text-sm text-slate-500">
                         <span>Showing {table.getFilteredRowModel().rows.length} contacts</span>
                     </div>
                 </div>
