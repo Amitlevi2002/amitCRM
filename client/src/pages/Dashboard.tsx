@@ -2,10 +2,11 @@ import {
     TrendingUp,
     Users,
     Target,
-    ArrowUpRight,
     ArrowDownRight,
     Plus,
-    MoreVertical
+    MoreVertical,
+    DollarSign,
+    Briefcase
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,7 @@ const container = {
 };
 
 const item = {
-    hidden: { y: 20, opacity: 0 },
+    hidden: { y: 30, opacity: 0 },
     show: { y: 0, opacity: 1 }
 };
 
@@ -49,25 +50,25 @@ export default function Dashboard() {
     const recentActivities = Array.isArray(recentActivitiesData) ? recentActivitiesData : [];
 
     const stats = [
-        { title: 'Total Revenue', value: statsData?.revenue ? `$${statsData.revenue.value.toLocaleString()}` : '$0', change: '+12.5%', isUp: true, icon: TrendingUp, color: 'text-emerald-500' },
-        { title: 'New Leads', value: statsData?.leads ? statsData.leads.value : '0', change: '+18.2%', isUp: true, icon: Users, color: 'text-blue-500' },
-        { title: 'Active Deals', value: statsData?.deals ? statsData.deals.value : '0', change: '-4.3%', isUp: false, icon: Target, color: 'text-amber-500' },
-        { title: 'Win Rate', value: statsData?.winRate ? `${statsData.winRate.value}%` : '0%', change: '+2.1%', isUp: true, icon: ArrowUpRight, color: 'text-indigo-500' },
+        { title: 'Total Revenue', value: statsData?.revenue ? `$${statsData.revenue.value.toLocaleString()}` : '$0', change: '+12.5%', isUp: true, icon: DollarSign, color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+        { title: 'New Leads', value: statsData?.leads ? statsData.leads.value : '0', change: '+18.2%', isUp: true, icon: Users, color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+        { title: 'Active Deals', value: statsData?.deals ? statsData.deals.value : '0', change: '-4.3%', isUp: false, icon: Briefcase, color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+        { title: 'Win Rate', value: statsData?.winRate ? `${statsData.winRate.value}%` : '0%', change: '+2.1%', isUp: true, icon: Target, color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
     ];
 
     return (
-        <div className="space-y-6 md:y-8">
+        <div className="space-y-8 pb-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Dashboard</h1>
-                    <p className="text-sm md:text-base text-slate-500">Real-time insights from your CRM.</p>
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
+                    <p className="text-slate-500 dark:text-slate-400">Welcome back! Here's your daily overview.</p>
                 </div>
                 <Button
-                    className="rounded-xl shadow-lg shadow-primary/20 gap-2 w-full sm:w-auto"
+                    className="rounded-xl shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow gap-2 h-11 px-6 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
                     onClick={() => navigate('/contacts')}
                 >
-                    <Plus size={18} />
-                    <span>New Contact</span>
+                    <Plus size={18} className="text-white" />
+                    <span className="text-white font-semibold">New Contact</span>
                 </Button>
             </div>
 
@@ -79,23 +80,26 @@ export default function Dashboard() {
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
             >
                 {stats.map((stat, i) => (
-                    <motion.div key={i} variants={item}>
-                        <Card className="border-none shadow-sm hover:shadow-md transition-shadow rounded-2xl overflow-hidden bg-white">
-                            <CardContent className="p-6">
+                    <motion.div key={i} variants={item} whileHover={{ y: -5, transition: { duration: 0.2 } }}>
+                        <Card className="border-none shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden relative group">
+                            {/* Glossy shine effect */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+                            <CardContent className="p-6 relative z-10">
                                 <div className="flex items-center justify-between mb-4">
-                                    <div className={cn("p-2 rounded-xl bg-slate-50", stat.color)}>
+                                    <div className={cn("p-3 rounded-2xl transition-colors", stat.color)}>
                                         <stat.icon size={24} />
                                     </div>
                                     <div className={cn(
-                                        "flex items-center gap-1 text-sm font-medium",
-                                        stat.isUp ? "text-emerald-500" : "text-rose-500"
+                                        "flex items-center gap-1 text-sm font-bold px-2 py-1 rounded-full bg-white/50 dark:bg-slate-800/50",
+                                        stat.isUp ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                                     )}>
                                         {stat.change}
                                         {stat.isUp ? <TrendingUp size={14} /> : <ArrowDownRight size={14} />}
                                     </div>
                                 </div>
-                                <p className="text-slate-500 text-sm font-medium">{stat.title}</p>
-                                <h3 className="text-2xl font-bold text-slate-900 mt-1">
+                                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{stat.title}</p>
+                                <h3 className="text-3xl font-bold text-slate-900 dark:text-white mt-1 tracking-tight">
                                     {statsLoading ? '...' : stat.value}
                                 </h3>
                             </CardContent>
@@ -105,68 +109,84 @@ export default function Dashboard() {
             </motion.div>
 
             {/* Main Grid */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                 {/* Recent Activities - Large */}
-                <Card className="xl:col-span-2 border-none shadow-sm rounded-3xl bg-white">
-                    <CardHeader className="flex flex-row items-center justify-between px-4 pt-4 md:px-8 md:pt-8">
-                        <CardTitle className="text-xl font-bold">Recent Activities</CardTitle>
-                        <Button variant="ghost" size="icon" className="rounded-full">
-                            <MoreVertical size={20} className="text-slate-400" />
-                        </Button>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4 md:px-8 md:pb-8">
-                        <div className="space-y-6">
-                            {activitiesLoading ? (
-                                <p className="text-center text-slate-500 py-8">Loading activities...</p>
-                            ) : recentActivities.slice(0, 4).length === 0 ? (
-                                <p className="text-center text-slate-500 py-8">No recent activities.</p>
-                            ) : (
-                                recentActivities.slice(0, 4).map((act: any, i: number) => (
-                                    <div key={i} className="flex items-center justify-between group cursor-pointer border-b border-slate-50 pb-2 last:border-0 last:pb-0">
-                                        <div className="flex items-center gap-4 min-w-0">
-                                            <div className="w-12 h-12 bg-slate-50 rounded-2xl flex-shrink-0 flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
-                                                <Plus size={20} />
+                <motion.div variants={item} initial="hidden" animate="show" className="xl:col-span-2">
+                    <Card className="h-full border-none shadow-sm bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
+                        <CardHeader className="flex flex-row items-center justify-between px-6 pt-6">
+                            <CardTitle className="text-xl font-bold text-slate-800 dark:text-slate-100">Recent Activities</CardTitle>
+                            <Button variant="ghost" size="icon" className="rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                                <MoreVertical size={20} className="text-slate-400" />
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="px-6 pb-6">
+                            <div className="space-y-1">
+                                {activitiesLoading ? (
+                                    <p className="text-center text-slate-500 py-12">Loading activities...</p>
+                                ) : recentActivities.slice(0, 5).length === 0 ? (
+                                    <p className="text-center text-slate-500 py-12">No recent activities.</p>
+                                ) : (
+                                    recentActivities.slice(0, 5).map((act: any, i: number) => (
+                                        <div key={i} className="flex items-center justify-between group cursor-pointer p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-2xl transition-all">
+                                            <div className="flex items-center gap-4 min-w-0">
+                                                <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl flex-shrink-0 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                                                    <Briefcase size={20} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h4 className="font-semibold text-slate-900 dark:text-white truncate">{act.type}</h4>
+                                                    <p className="text-sm text-slate-500 truncate">{act.outcome}</p>
+                                                </div>
                                             </div>
-                                            <div className="min-w-0">
-                                                <h4 className="font-semibold text-slate-900 truncate">{act.type}</h4>
-                                                <p className="text-sm text-slate-500 truncate">{act.outcome}</p>
-                                            </div>
+                                            <span className="text-xs font-medium text-slate-400 flex-shrink-0 ml-2 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">
+                                                {new Date(act.date).toLocaleDateString()}
+                                            </span>
                                         </div>
-                                        <span className="text-xs font-medium text-slate-400 flex-shrink-0 ml-2">
-                                            {new Date(act.date).toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                        <Button
-                            variant="ghost"
-                            className="w-full mt-6 md:mt-8 text-primary font-semibold rounded-xl underline-offset-4 hover:underline"
-                            onClick={() => navigate('/activities')}
-                        >
-                            View All Activities
-                        </Button>
-                    </CardContent>
-                </Card>
+                                    ))
+                                )}
+                            </div>
+                            <Button
+                                variant="ghost"
+                                className="w-full mt-6 text-primary font-semibold rounded-xl hover:bg-primary/5 h-12"
+                                onClick={() => navigate('/activities')}
+                            >
+                                View All Activities
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </motion.div>
 
                 {/* Mini Chart / Pipe */}
-                <Card className="border-none shadow-sm rounded-3xl bg-primary text-white p-8 overflow-hidden relative">
-                    <div className="relative z-10">
-                        <h3 className="text-xl font-bold mb-2">Deal Pipeline</h3>
-                        <p className="opacity-80 text-sm mb-6">Current active deals in negotiation stage.</p>
-                        <div className="text-4xl font-bold tracking-tight mb-8">
-                            {statsData ? `$${statsData.revenue.value.toLocaleString()}` : '...'}
+                <motion.div variants={item} initial="hidden" animate="show" transition={{ delay: 0.2 }}>
+                    <Card className="h-full border-none shadow-xl bg-gradient-to-br from-primary to-purple-700 text-white p-8 overflow-hidden relative group">
+                        <div className="relative z-10 flex flex-col h-full">
+                            <div>
+                                <h3 className="text-2xl font-bold mb-2">Deal Pipeline</h3>
+                                <p className="text-white/80 text-sm mb-6 max-w-[80%]">Track your active deals and forecast revenue.</p>
+                            </div>
+
+                            <div className="mt-auto">
+                                <div className="text-5xl font-bold tracking-tight mb-8 drop-shadow-md">
+                                    {statsData ? `$${statsData.revenue.value.toLocaleString()}` : <span className="text-3xl opacity-50">...</span>}
+                                </div>
+                                <Button
+                                    className="w-full bg-white text-primary hover:bg-white/90 shadow-lg shadow-black/20 rounded-xl font-bold h-12 text-base transition-transform hover:scale-105"
+                                    onClick={() => navigate('/pipeline')}
+                                >
+                                    Open Pipeline
+                                </Button>
+                            </div>
                         </div>
-                        <Button
-                            className="bg-white text-primary hover:bg-slate-50 rounded-xl font-bold px-8"
-                            onClick={() => navigate('/pipeline')}
-                        >
-                            Open Pipeline
-                        </Button>
-                    </div>
-                    {/* Decorative Circle */}
-                    <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-                </Card>
+
+                        {/* 3D Decorative Elements */}
+                        <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700 ease-in-out"></div>
+                        <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-purple-500/30 rounded-full blur-3xl"></div>
+
+                        {/* Floating 3D Icon placeholder */}
+                        <div className="absolute top-1/2 right-4 -translate-y-1/2 opacity-20 transform rotate-12 scale-150 pointer-events-none">
+                            <Target size={120} />
+                        </div>
+                    </Card>
+                </motion.div>
             </div>
         </div>
     );

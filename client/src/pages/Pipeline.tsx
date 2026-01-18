@@ -151,7 +151,7 @@ export default function Pipeline() {
             >
                 <div className="flex gap-6 overflow-x-auto pb-4 h-full">
                     {COLUMNS.map((column) => (
-                        <div key={column} className="flex-1 min-w-[320px] bg-slate-50/50 rounded-3xl p-4 flex flex-col">
+                        <div key={column} className="flex-1 min-w-[320px] glass rounded-3xl p-4 flex flex-col">
                             <div className="flex items-center justify-between mb-4 px-2">
                                 <h3 className="font-bold text-slate-700 flex items-center gap-2">
                                     {column}
