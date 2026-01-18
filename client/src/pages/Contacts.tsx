@@ -131,7 +131,7 @@ export default function Contacts() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 rounded-lg"
-                        onClick={() => window.location.href = `mailto:${row.original.email}`}
+                        onClick={() => window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${row.original.email}`, '_blank')}
                     >
                         <Mail size={16} className="text-slate-400" />
                     </Button>
@@ -139,7 +139,10 @@ export default function Contacts() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 rounded-lg"
-                        onClick={() => window.location.href = `tel:${row.original.phone || '+1234567890'}`}
+                        onClick={() => {
+                            const phone = row.original.phone?.replace(/\D/g, '') || '';
+                            window.open(`https://wa.me/${phone}`, '_blank');
+                        }}
                     >
                         <Phone size={16} className="text-slate-400" />
                     </Button>
@@ -175,6 +178,39 @@ export default function Contacts() {
         },
     });
 
+    const handleExport = () => {
+        if (!contacts.length) {
+            toast({ title: "Export Failed", description: "No contacts to export.", variant: "destructive" });
+            return;
+        }
+
+        const headers = ["First Name", "Last Name", "Company", "Email", "Phone", "Type", "Status", "Updated At"];
+        const csvContent = [
+            headers.join(","),
+            ...contacts.map((contact: Contact) => [
+                contact.firstName,
+                contact.lastName,
+                `"${contact.companyName}"`, // Escape CSV
+                contact.email,
+                contact.phone || "",
+                contact.type,
+                contact.status,
+                new Date(contact.updatedAt).toLocaleDateString()
+            ].join(","))
+        ].join("\n");
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `contacts_export_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast({ title: "Export Successful", description: "Your contacts list has been downloaded." });
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -186,7 +222,7 @@ export default function Contacts() {
                     <Button
                         variant="outline"
                         className="rounded-xl gap-2 flex-1 sm:flex-none"
-                        onClick={() => toast({ title: "Export Started", description: "Your contacts list is being prepared." })}
+                        onClick={handleExport}
                     >
                         <Download size={18} />
                         <span className="hidden xs:inline">Export</span>

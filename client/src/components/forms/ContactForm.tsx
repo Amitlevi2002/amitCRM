@@ -16,6 +16,7 @@ const contactSchema = z.object({
     lastName: z.string().min(2, "Last name must be at least 2 characters"),
     companyName: z.string().min(2, "Company must be at least 2 characters"),
     email: z.string().email("Invalid email address"),
+    phone: z.string().min(10, "Phone number must be at least 10 digits"),
     type: z.enum(['Private', 'Business']),
     status: z.enum(['Active', 'Inactive']),
 });
@@ -37,6 +38,7 @@ export function ContactForm({ open, onOpenChange, onSubmit, initialData }: Conta
             lastName: '',
             companyName: '',
             email: '',
+            phone: '',
             type: 'Business',
             status: 'Active',
             ...initialData
@@ -71,10 +73,17 @@ export function ContactForm({ open, onOpenChange, onSubmit, initialData }: Conta
                         {errors.companyName && <p className="text-xs text-rose-500">{errors.companyName.message}</p>}
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700">Email Address</label>
-                        <Input {...register('email')} placeholder="e.g. john@example.com" className="rounded-xl" />
-                        {errors.email && <p className="text-xs text-rose-500">{errors.email.message}</p>}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-700">Email Address</label>
+                            <Input {...register('email')} placeholder="e.g. john@example.com" className="rounded-xl" />
+                            {errors.email && <p className="text-xs text-rose-500">{errors.email.message}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-700">Phone Number</label>
+                            <Input {...register('phone')} placeholder="e.g. 0501234567" className="rounded-xl" />
+                            {errors.phone && <p className="text-xs text-rose-500">{errors.phone.message}</p>}
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
