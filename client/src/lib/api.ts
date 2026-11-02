@@ -3,8 +3,8 @@ import type { Activity, Contact, Deal, NewActivity, NewContact, NewDeal, SearchR
 
 const CONFIG_URL = import.meta.env.VITE_API_URL as string | undefined;
 
-/** With no VITE_API_URL the app runs on in-browser demo data instead of the Express server. */
-export const isDemo = !CONFIG_URL;
+/** The client runs on in-browser demo data unless it is explicitly pointed at the Express server. */
+export const isDemo = import.meta.env.VITE_USE_API !== 'true' || !CONFIG_URL;
 
 const API_BASE = CONFIG_URL?.endsWith('/api') ? CONFIG_URL : `${CONFIG_URL}/api`;
 
