@@ -1,63 +1,48 @@
-const CONFIG_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const API_BASE = CONFIG_URL.endsWith('/api') ? CONFIG_URL : `${CONFIG_URL}/api`;
+import { demoApi } from './demo';
+import type { Activity, Contact, Deal, NewActivity, NewContact, NewDeal, SearchResults } from './types';
 
-const handleResponse = async (res: Response) => {
+const CONFIG_URL = import.meta.env.VITE_API_URL as string | undefined;
+
+/** With no VITE_API_URL the app runs on in-browser demo data instead of the Express server. */
+export const isDemo = !CONFIG_URL;
+
+const API_BASE = CONFIG_URL?.endsWith('/api') ? CONFIG_URL : `${CONFIG_URL}/api`;
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+    const res = await fetch(`${API_BASE}${path}`, {
+        ...init,
+        headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,
+    });
     if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        throw new Error(error.message || 'API Error');
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || body.error || `Request failed (${res.status})`);
     }
-    if (res.status === 204) return null;
-    return res.json();
-};
+    return res.status === 204 ? (null as T) : res.json();
+}
 
-export const api = {
+const send = (method: string, data?: unknown): RequestInit => ({ method, body: data === undefined ? undefined : JSON.stringify(data) });
+
+const httpApi = {
     contacts: {
-        list: () => fetch(`${API_BASE}/contacts`).then(handleResponse),
-        create: (data: any) => fetch(`${API_BASE}/contacts`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        }).then(handleResponse),
-        update: (id: string, data: any) => fetch(`${API_BASE}/contacts/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        }).then(handleResponse),
-        delete: (id: string) => fetch(`${API_BASE}/contacts/${id}`, {
-            method: 'DELETE'
-        }).then(handleResponse),
+        list: () => request<Contact[]>('/contacts'),
+        create: (data: NewContact) => request<Contact>('/contacts', send('POST', data)),
+        update: (id: string, data: Partial<NewContact>) => request<Contact>(`/contacts/${id}`, send('PUT', data)),
+        delete: (id: string) => request<null>(`/contacts/${id}`, send('DELETE')),
     },
     leads: {
-        list: () => fetch(`${API_BASE}/leads`).then(handleResponse),
-        create: (data: any) => fetch(`${API_BASE}/leads`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        }).then(handleResponse),
-        update: (id: string, data: any) => fetch(`${API_BASE}/leads/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        }).then(handleResponse),
-        delete: (id: string) => fetch(`${API_BASE}/leads/${id}`, {
-            method: 'DELETE'
-        }).then(handleResponse),
+        list: () => request<Deal[]>('/leads'),
+        create: (data: NewDeal) => request<Deal>('/leads', send('POST', data)),
+        update: (id: string, data: Partial<NewDeal>) => request<Deal>(`/leads/${id}`, send('PUT', data)),
+        delete: (id: string) => request<null>(`/leads/${id}`, send('DELETE')),
     },
     activities: {
-        list: () => fetch(`${API_BASE}/activities`).then(handleResponse),
-        create: (data: any) => fetch(`${API_BASE}/activities`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        }).then(handleResponse),
-        delete: (id: string) => fetch(`${API_BASE}/activities/${id}`, {
-            method: 'DELETE'
-        }).then(handleResponse),
-    },
-    stats: {
-        get: () => fetch(`${API_BASE}/stats`).then(handleResponse),
+        list: () => request<Activity[]>('/activities'),
+        create: (data: NewActivity) => request<Activity>('/activities', send('POST', data)),
+        delete: (id: string) => request<null>(`/activities/${id}`, send('DELETE')),
     },
     search: {
-        query: (q: string) => fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`).then(handleResponse),
-    }
+        query: (q: string) => request<SearchResults>(`/search?q=${encodeURIComponent(q)}`),
+    },
 };
+
+export const api = isDemo ? demoApi : httpApi;
