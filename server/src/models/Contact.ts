@@ -1,4 +1,4 @@
-﻿import { Schema, model, Document, Types } from 'mongoose';
+import { Schema, model, Document, Types } from 'mongoose';
 
 export interface IContact extends Document {
     firstName: string;
@@ -16,7 +16,7 @@ export interface IContact extends Document {
     type: 'Private' | 'Business';
     status: 'Active' | 'Inactive';
     source?: string;
-    owner: Types.ObjectId;
+    owner?: Types.ObjectId;
     tags: string[];
 }
 
@@ -36,7 +36,7 @@ const contactSchema = new Schema<IContact>({
     type: { type: String, enum: ['Private', 'Business'], required: true },
     status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
     source: { type: String },
-    owner: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    owner: { type: Schema.Types.ObjectId, ref: 'User' },
     tags: [{ type: String }],
 }, { timestamps: true });
 

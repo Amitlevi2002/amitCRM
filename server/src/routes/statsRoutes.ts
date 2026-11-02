@@ -1,39 +1,37 @@
 import { Router } from 'express';
-import { Contact } from '../models/Contact';
 import { Lead } from '../models/Lead';
-import { Activity } from '../models/Activity';
 
 const router = Router();
 
-router.get('/', async (req, res) => {
+// Same numbers the client computes in lib/metrics.ts, for API consumers that want them pre-aggregated.
+router.get('/', async (_req, res) => {
     try {
-        const [
-            totalContacts,
-            totalDeals,
-            totalRevenueAgg
-        ] = await Promise.all([
-            Contact.countDocuments(),
-            Lead.countDocuments(),
-            Lead.aggregate([
-                { $group: { _id: null, total: { $sum: "$estimatedValue" } } }
-            ])
+        const byStage = await Lead.aggregate<{ _id: string; count: number; value: number; weighted: number }>([
+            {
+                $group: {
+                    _id: '$stage',
+                    count: { $sum: 1 },
+                    value: { $sum: '$estimatedValue' },
+                    weighted: { $sum: { $multiply: ['$estimatedValue', { $divide: ['$probability', 100] }] } },
+                },
+            },
         ]);
 
-        const totalRevenue = totalRevenueAgg[0]?.total || 0;
-
-        // Calculate Win Rate (Closed Won / Total Deals with outcome)
-        const closedWon = await Lead.countDocuments({ stage: 'Closed Won' });
-        const finishedDeals = await Lead.countDocuments({ stage: { $in: ['Closed Won', 'Lost'] } });
-        const winRate = finishedDeals > 0 ? Math.round((closedWon / finishedDeals) * 100) : 0;
+        const get = (stage: string) => byStage.find((s) => s._id === stage) ?? { count: 0, value: 0, weighted: 0 };
+        const open = [get('Prospecting'), get('Negotiation')];
+        const won = get('Closed Won');
+        const lost = get('Lost');
+        const closed = won.count + lost.count;
 
         res.json({
-            revenue: { value: totalRevenue, change: 12.5 }, // Change is mocked for now as we don't have historical data yet
-            leads: { value: totalDeals, change: 18.2 },
-            deals: { value: await Lead.countDocuments({ status: { $ne: 'Lost' } }), change: -4.3 },
-            winRate: { value: winRate, change: 2.1 }
+            openValue: open.reduce((s, x) => s + x.value, 0),
+            openCount: open.reduce((s, x) => s + x.count, 0),
+            weightedForecast: Math.round(open.reduce((s, x) => s + x.weighted, 0)),
+            wonValue: won.value,
+            winRate: closed ? Math.round((won.count / closed) * 100) : null,
         });
     } catch (error) {
-        console.error('Stats Error:', error);
+        console.error('Stats error:', error);
         res.status(500).json({ message: 'Error fetching stats' });
     }
 });

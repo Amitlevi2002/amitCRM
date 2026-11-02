@@ -1,4 +1,4 @@
-﻿import { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { Model, Document } from 'mongoose';
 
 export const createController = (model: Model<any>) => ({

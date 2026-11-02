@@ -1,4 +1,4 @@
-﻿import { Schema, model, Document, Types } from 'mongoose';
+import { Schema, model, Document, Types } from 'mongoose';
 
 export interface IActivity extends Document {
     type: 'Call' | 'Meeting' | 'Email' | 'Note';
@@ -6,7 +6,7 @@ export interface IActivity extends Document {
     outcome?: string;
     relatedTo: Types.ObjectId;
     relatedToType: 'Contact' | 'Lead';
-    createdBy: Types.ObjectId;
+    createdBy?: Types.ObjectId;
 }
 
 const activitySchema = new Schema<IActivity>({
@@ -15,7 +15,7 @@ const activitySchema = new Schema<IActivity>({
     outcome: { type: String },
     relatedTo: { type: Schema.Types.ObjectId, required: true, refPath: 'relatedToType' },
     relatedToType: { type: String, required: true, enum: ['Contact', 'Lead'] },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
 export const Activity = model<IActivity>('Activity', activitySchema);

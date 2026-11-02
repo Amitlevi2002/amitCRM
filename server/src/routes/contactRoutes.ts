@@ -1,4 +1,4 @@
-﻿// @ts-ignore
+// @ts-ignore
 import { Router } from 'express';
 import { Contact } from '../models/Contact';
 import { createController } from '../utils/factory';

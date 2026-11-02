@@ -1,4 +1,4 @@
-﻿import { z } from 'zod';
+import { z } from 'zod';
 
 export const contactSchema = z.object({
     firstName: z.string().min(1, 'First name is required'),
@@ -16,7 +16,7 @@ export const contactSchema = z.object({
     type: z.enum(['Private', 'Business']),
     status: z.enum(['Active', 'Inactive']).default('Active'),
     source: z.string().optional(),
-    owner: z.string().min(1, 'Owner ID is required'),
+    owner: z.string().optional(),
     tags: z.array(z.string()).default([]),
 });
 
@@ -26,8 +26,8 @@ export const leadSchema = z.object({
     status: z.enum(['New', 'Contacted', 'Qualified', 'Lost']).default('New'),
     leadScore: z.number().min(0).max(100).default(0),
     source: z.string().optional(),
-    assignedTo: z.string().min(1, 'Assigned user ID is required'),
-    stage: z.enum(['Prospecting', 'Negotiation', 'Closed Won']).default('Prospecting'),
+    assignedTo: z.string().optional(),
+    stage: z.enum(['Prospecting', 'Negotiation', 'Closed Won', 'Lost']).default('Prospecting'),
     estimatedValue: z.number().min(0).default(0),
     probability: z.number().min(0).max(100).default(0),
     expectedCloseDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
@@ -39,7 +39,7 @@ export const activitySchema = z.object({
     outcome: z.string().optional(),
     relatedTo: z.string().min(1, 'Related entity ID is required'),
     relatedToType: z.enum(['Contact', 'Lead']),
-    createdBy: z.string().min(1, 'Creator ID is required'),
+    createdBy: z.string().optional(),
 });
 
 export const quoteSchema = z.object({

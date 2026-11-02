@@ -1,4 +1,4 @@
-﻿import { Schema, model, Document, Types } from 'mongoose';
+import { Schema, model, Document, Types } from 'mongoose';
 
 // --- Quotes ---
 export interface IQuote extends Document {
