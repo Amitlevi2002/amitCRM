@@ -1,52 +1,49 @@
-
+// Fills an empty database with a small, believable sample. Run: npm run seed
+import 'dotenv/config';
 import mongoose from 'mongoose';
 import { Contact } from '../src/models/Contact';
 import { Lead } from '../src/models/Lead';
 import { Activity } from '../src/models/Activity';
 
-const MONGO_URI = 'mongodb+srv://amitlevi:amitlevi201002@cluster0.9ngekjj.mongodb.net/?appName=Cluster0';
+const MONGO_URI = process.env.MONGO_URI;
+if (!MONGO_URI) {
+    console.error('Set MONGO_URI in server/.env first (see .env.example).');
+    process.exit(1);
+}
 
-const seedData = async () => {
-    try {
-        await mongoose.connect(MONGO_URI);
-        console.log('Connected to MongoDB');
+const daysFromNow = (n: number) => new Date(Date.now() + n * 864e5);
 
-        // Clear existing data (optional, maybe unsafe if user has real data, better just add)
-        // awaiting clear for now to ensure clean state for "examples"
-        // await Contact.deleteMany({});
-        // await Lead.deleteMany({});
-        // await Activity.deleteMany({});
+async function seed() {
+    await mongoose.connect(MONGO_URI!);
 
-        // Contacts
-        const contacts = await Contact.create([
-            { firstName: 'Alice', lastName: 'Johnson', email: 'alice@techcorp.com', phone: '555-0101', company: 'TechCorp', type: 'Business' },
-            { firstName: 'Bob', lastName: 'Smith', email: 'bob@startup.io', phone: '555-0102', company: 'StartupIO', type: 'Private' },
-            { firstName: 'Charlie', lastName: 'Davis', email: 'charlie@enterprise.net', phone: '555-0103', company: 'EnterpriseNet', type: 'Business' }
-        ]);
-        console.log(`Created ${contacts.length} contacts`);
-
-        // Leads/Deals
-        const leads = await Lead.create([
-            { title: 'Enterprise License Deal', companyName: 'TechCorp', status: 'Qualified', stage: 'Negotiation', estimatedValue: 25000, probability: 75, assignedTo: new mongoose.Types.ObjectId() },
-            { title: 'Q1 Service Contract', companyName: 'StartupIO', status: 'New', stage: 'Prospecting', estimatedValue: 5000, probability: 20, assignedTo: new mongoose.Types.ObjectId() },
-            { title: 'Legacy System Upgrade', companyName: 'EnterpriseNet', status: 'Contacted', stage: 'Closed Won', estimatedValue: 120000, probability: 100, assignedTo: new mongoose.Types.ObjectId() }
-        ]);
-        console.log(`Created ${leads.length} leads`);
-
-        // Activities
-        await Activity.create([
-            { type: 'Call', description: 'Initial discovery call with Alice', relatedTo: contacts[0]._id, createdBy: new mongoose.Types.ObjectId(), date: new Date() },
-            { type: 'Meeting', description: 'Demo presentation for TechCorp', relatedTo: leads[0]._id, createdBy: new mongoose.Types.ObjectId(), date: new Date() },
-            { type: 'Email', description: 'Sent proposal to Bob', relatedTo: contacts[1]._id, createdBy: new mongoose.Types.ObjectId(), date: new Date() }
-        ]);
-        console.log('Created activities');
-
-        console.log('Seeding complete!');
-        process.exit(0);
-    } catch (error) {
-        console.error('Seeding failed:', error);
-        process.exit(1);
+    if (await Contact.estimatedDocumentCount()) {
+        console.log('Database already has contacts, leaving it alone.');
+        return;
     }
-};
 
-seedData();
+    const [noa, daniel, yael] = await Contact.create([
+        { firstName: 'Noa', lastName: 'Ben-David', companyName: 'Kesem Logistics', email: 'noa@kesemlog.co.il', phone: '+972 52 418 2290', type: 'Business' },
+        { firstName: 'Daniel', lastName: 'Hart', companyName: 'Northwind Retail', email: 'd.hart@northwind.com', phone: '+44 20 7946 0321', type: 'Business' },
+        { firstName: 'Yael', lastName: 'Mizrahi', companyName: 'Ofek Clinics', email: 'yael.m@ofek-clinics.co.il', phone: '+972 54 771 0034', type: 'Business' },
+    ]);
+
+    await Lead.create([
+        { title: 'Fleet tracking rollout', companyName: 'Kesem Logistics', stage: 'Negotiation', estimatedValue: 48000, probability: 70, expectedCloseDate: daysFromNow(12) },
+        { title: 'POS integration', companyName: 'Northwind Retail', stage: 'Negotiation', estimatedValue: 31000, probability: 60, expectedCloseDate: daysFromNow(-3) },
+        { title: 'Patient portal pilot', companyName: 'Ofek Clinics', stage: 'Prospecting', estimatedValue: 22000, probability: 25, expectedCloseDate: daysFromNow(35) },
+        { title: 'Clinic scheduling module', companyName: 'Ofek Clinics', stage: 'Closed Won', estimatedValue: 26000, probability: 100 },
+        { title: 'Ordering app', companyName: 'Bellini Foods', stage: 'Lost', estimatedValue: 8800, probability: 0 },
+    ]);
+
+    await Activity.create([
+        { type: 'Call', outcome: 'Walked through fleet pricing tiers', relatedTo: noa._id, relatedToType: 'Contact', date: daysFromNow(-0.2) },
+        { type: 'Email', outcome: 'Sent revised POS integration quote', relatedTo: daniel._id, relatedToType: 'Contact', date: daysFromNow(-1) },
+        { type: 'Meeting', outcome: 'Pilot scoping with clinic managers', relatedTo: yael._id, relatedToType: 'Contact', date: daysFromNow(-2) },
+    ]);
+
+    console.log('Seeded 3 contacts, 5 deals, 3 activities.');
+}
+
+seed()
+    .catch((err) => { console.error(err); process.exitCode = 1; })
+    .finally(() => mongoose.disconnect());
