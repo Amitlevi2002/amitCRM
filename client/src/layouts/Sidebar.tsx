@@ -1,151 +1,89 @@
+import { NavLink } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { LayoutGrid, Users, Columns3, ListChecks, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-    LayoutDashboard,
-    Users,
-    Target,
-    Activity,
-    ChevronLeft,
-    ChevronRight,
-    Settings
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Link, useLocation } from 'react-router-dom';
+import { isDemo } from '@/lib/api';
+import { demoApi } from '@/lib/demo';
 
 const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+    { icon: LayoutGrid, label: 'Overview', href: '/' },
+    { icon: Columns3, label: 'Pipeline', href: '/pipeline' },
     { icon: Users, label: 'Contacts', href: '/contacts' },
-    { icon: Target, label: 'Pipeline', href: '/pipeline' },
-    { icon: Activity, label: 'Activities', href: '/activities' },
+    { icon: ListChecks, label: 'Activity', href: '/activities' },
 ];
 
 interface SidebarProps {
-    isOpen: boolean;
-    setIsOpen: (open: boolean) => void;
     isMobileOpen: boolean;
     setIsMobileOpen: (open: boolean) => void;
 }
 
-export default function Sidebar({ isOpen, setIsOpen, isMobileOpen, setIsMobileOpen }: SidebarProps) {
-    const location = useLocation();
+export default function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
+    const queryClient = useQueryClient();
+
+    const resetDemo = () => {
+        demoApi.reset();
+        queryClient.invalidateQueries();
+    };
 
     return (
         <>
-            {/* Mobile Overlay */}
             <div
                 className={cn(
-                    "fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300",
-                    isMobileOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                    'fixed inset-0 z-40 bg-foreground/20 transition-opacity lg:hidden',
+                    isMobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
                 )}
                 onClick={() => setIsMobileOpen(false)}
             />
 
             <aside
                 className={cn(
-                    "glass border-r border-white/20 dark:border-slate-800/50 z-50 flex flex-col transition-all duration-300 ease-in-out",
-                    "fixed inset-y-0 left-0",
-                    "lg:static lg:h-screen",
-                    isMobileOpen ? "translate-x-0" : "-translate-x-full",
-                    "lg:translate-x-0",
-                    isOpen ? "w-72" : "w-20"
+                    'fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r bg-background transition-transform lg:static lg:translate-x-0',
+                    isMobileOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
-                {/* Logo Area */}
-                <div className={cn("p-6 flex items-center mb-6", isOpen ? "justify-between" : "justify-center")}>
-                    <Link
-                        to="/"
-                        className={cn(
-                            "flex items-center gap-3 transition-opacity duration-300",
-                            !isOpen && "hidden"
-                        )}
-                    >
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-primary/30">
-                            N
-                        </div>
-                        <span className="font-bold text-2xl text-slate-800 dark:text-white tracking-tight">Nexus</span>
-                    </Link>
-
-                    {!isOpen && (
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-primary/30 mb-2">
-                            N
-                        </div>
-                    )}
-
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setIsOpen(!isOpen)}
-                        className={cn(
-                            "hover:bg-primary/10 hover:text-primary rounded-full hidden lg:flex",
-                            !isOpen && "hidden" // Hide toggler when closed (user can click logo or main area to open? maybe just keep it simple)
-                        )}
-                    >
-                        <ChevronLeft size={20} />
-                    </Button>
+                <div className="flex h-14 items-center gap-2.5 px-5">
+                    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden className="text-primary">
+                        <rect x="1" y="1" width="7" height="16" rx="1.5" fill="currentColor" />
+                        <rect x="10" y="7" width="7" height="10" rx="1.5" fill="currentColor" opacity=".45" />
+                    </svg>
+                    <span className="text-[15px] font-semibold tracking-tight">Nexus</span>
                 </div>
 
-                {/* Nav Items */}
-                <nav className="flex-1 px-4 space-y-3 overflow-y-auto custom-scrollbar">
-                    {navItems.map((item) => {
-                        const isActive = location.pathname === item.href;
-                        return (
-                            <Link
-                                key={item.label}
-                                to={item.href}
-                                onClick={() => setIsMobileOpen(false)}
-                                className={cn(
-                                    "flex items-center gap-4 p-4 rounded-2xl transition-all duration-200 group relative overflow-hidden",
+                <nav className="flex-1 space-y-px px-3 pt-2">
+                    {navItems.map((item) => (
+                        <NavLink
+                            key={item.href}
+                            to={item.href}
+                            end={item.href === '/'}
+                            onClick={() => setIsMobileOpen(false)}
+                            className={({ isActive }) =>
+                                cn(
+                                    'flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13.5px] transition-colors',
                                     isActive
-                                        ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105"
-                                        : "hover:bg-white/50 dark:hover:bg-slate-800/50 hover:scale-[1.02] text-slate-600 dark:text-slate-300",
-                                    !isOpen && "justify-center p-3"
-                                )}
-                            >
-                                <item.icon
-                                    size={22}
-                                    className={cn(
-                                        "transition-transform duration-300 group-hover:scale-110",
-                                        isActive ? "text-white" : "text-slate-500 dark:text-slate-400 group-hover:text-primary"
-                                    )}
-                                />
-                                {isOpen && (
-                                    <span className="font-semibold tracking-wide">
-                                        {item.label}
-                                    </span>
-                                )}
-
-                                {/* Active Indicator (Glow) */}
-                                {isActive && (
-                                    <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent pointer-events-none" />
-                                )}
-                            </Link>
-                        );
-                    })}
+                                        ? 'bg-card font-medium text-foreground shadow-[0_0_0_1px_hsl(var(--border))]'
+                                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                                )
+                            }
+                        >
+                            <item.icon size={15} strokeWidth={1.75} />
+                            {item.label}
+                        </NavLink>
+                    ))}
                 </nav>
 
-                {/* Bottom Actions */}
-                <div className="p-4 mt-auto">
-                    <Button
-                        variant="ghost"
-                        className={cn(
-                            "w-full justify-start gap-4 rounded-2xl p-4 h-auto hover:bg-red-50 hover:text-red-500 transition-all",
-                            !isOpen && "justify-center px-0"
-                        )}
-                    >
-                        <Settings size={22} />
-                        {isOpen && <span className="font-semibold">Settings</span>}
-                    </Button>
-
-                    {/* Toggle for closed state to re-open */}
-                    {!isOpen && (
-                        <Button
-                            variant="ghost"
-                            className="w-full mt-2 hover:bg-slate-100 rounded-xl"
-                            onClick={() => setIsOpen(true)}
+                {isDemo && (
+                    <div className="m-3 rounded-md border border-dashed p-3 text-xs leading-relaxed text-muted-foreground">
+                        <p>
+                            Demo mode. Data lives in your browser, so feel free to edit, drag and delete.
+                        </p>
+                        <button
+                            onClick={resetDemo}
+                            className="mt-2 inline-flex items-center gap-1 font-medium text-foreground hover:text-primary"
                         >
-                            <ChevronRight size={20} />
-                        </Button>
-                    )}
-                </div>
+                            <RotateCcw size={12} /> Reset sample data
+                        </button>
+                    </div>
+                )}
             </aside>
         </>
     );

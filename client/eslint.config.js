@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // shadcn/ui primitives are generated code, kept as shipped.
+  globalIgnores(['dist', 'src/components/ui', 'src/hooks/use-toast.ts']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

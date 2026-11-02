@@ -1,324 +1,217 @@
-import * as React from 'react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-    ColumnDef,
-    flexRender,
-    getCoreRowModel,
-    useReactTable,
-    getPaginationRowModel,
-    getSortedRowModel,
-    SortingState,
-    getFilteredRowModel,
-    ColumnFiltersState,
+    flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
+    type ColumnDef, type SortingState,
 } from '@tanstack/react-table';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowDown, ArrowUp, Download, Mail, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { ContactForm } from '@/components/forms/ContactForm';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-    MoreHorizontal,
-    ArrowUpDown,
-    Plus,
-    Filter,
-    Download,
-    Mail,
-    Phone
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+import type { Contact } from '@/lib/types';
+import { cn, shortDate } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { PageHeader } from '@/components/PageHeader';
+import { ContactForm, type ContactFormValues } from '@/components/forms/ContactForm';
 
-interface Contact {
-    _id: string;
-    firstName: string;
-    lastName: string;
-    companyName: string;
-    email: string;
-    phone?: string;
-    status: 'Active' | 'Inactive';
-    type: 'Private' | 'Business';
-    updatedAt: string;
+const STATUS_FILTERS = ['All', 'Active', 'Inactive'] as const;
+
+function toCsv(rows: Contact[]) {
+    const cell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['First name', 'Last name', 'Company', 'Email', 'Phone', 'Type', 'Status', 'Added'];
+    const lines = rows.map((c) => [c.firstName, c.lastName, c.companyName, c.email, c.phone, c.type, c.status, c.createdAt.slice(0, 10)].map(cell).join(','));
+    // BOM so Excel opens non-ASCII names correctly.
+    return '﻿' + [header.join(','), ...lines].join('\n');
 }
-
-// Mock data removed
 
 export default function Contacts() {
     const { toast } = useToast();
     const queryClient = useQueryClient();
-    const [isFormOpen, setIsFormOpen] = useState(false);
-    const [sorting, setSorting] = useState<SortingState>([]);
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+    const [params, setParams] = useSearchParams();
+    const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }]);
+    const [status, setStatus] = useState<(typeof STATUS_FILTERS)[number]>('All');
+    const [form, setForm] = useState<{ open: boolean; contact?: Contact | null }>({ open: false });
+    const query = params.get('q') ?? '';
 
-    const { data: contacts = [], isLoading } = useQuery({
-        queryKey: ['contacts'],
-        queryFn: api.contacts.list,
+    const { data: contacts = [], isLoading } = useQuery({ queryKey: ['contacts'], queryFn: api.contacts.list });
+    const refresh = () => queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    const onError = (e: Error) => toast({ title: 'Couldn’t save', description: e.message, variant: 'destructive' });
+
+    const save = useMutation({
+        mutationFn: (v: ContactFormValues) => (form.contact ? api.contacts.update(form.contact._id, v) : api.contacts.create(v)),
+        onSuccess: () => { refresh(); setForm({ open: false }); },
+        onError,
     });
-
-    const createMutation = useMutation({
-        mutationFn: api.contacts.create,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['contacts'] });
-            toast({ title: "Success", description: "Contact created successfully." });
-            setIsFormOpen(false);
-        },
-    });
-
-    const deleteMutation = useMutation({
+    const remove = useMutation({
         mutationFn: api.contacts.delete,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['contacts'] });
-            toast({ title: "Deleted", description: "Contact removed from database." });
-        },
+        onSuccess: () => { refresh(); toast({ title: 'Contact deleted' }); },
+        onError,
     });
 
-    const columns: ColumnDef<Contact>[] = [
+    const visible = useMemo(() => (status === 'All' ? contacts : contacts.filter((c) => c.status === status)), [contacts, status]);
+
+    const columns = useMemo<ColumnDef<Contact>[]>(() => [
         {
             id: 'name',
-            accessorFn: (row) => `${row.firstName} ${row.lastName}`,
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')} className="-ml-4 font-bold">
-                    Name
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-            ),
-            cell: ({ row }) => (
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                        {row.original.firstName.charAt(0)}{row.original.lastName.charAt(0)}
+            header: 'Name',
+            accessorFn: (c) => `${c.firstName} ${c.lastName} ${c.email} ${c.companyName ?? ''}`,
+            sortingFn: (a, b) => a.original.lastName.localeCompare(b.original.lastName),
+            cell: ({ row: { original: c } }) => (
+                <div className="flex items-center gap-2.5">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-medium text-muted-foreground">
+                        {c.firstName[0]}{c.lastName[0]}
+                    </span>
+                    <div className="min-w-0">
+                        <p className="truncate font-medium">{c.firstName} {c.lastName}</p>
+                        <p className="truncate text-xs text-muted-foreground">{c.email}</p>
                     </div>
-                    <span className="font-semibold text-slate-900">{row.original.firstName} {row.original.lastName}</span>
                 </div>
             ),
         },
-        {
-            accessorKey: 'companyName',
-            header: 'Company',
-            cell: ({ row }) => <span className="text-slate-600">{row.original.companyName}</span>,
-        },
+        { accessorKey: 'companyName', header: 'Company', cell: ({ getValue }) => getValue<string>() || <span className="text-muted-foreground">—</span> },
+        { accessorKey: 'phone', header: 'Phone', enableSorting: false, cell: ({ getValue }) => <span className="num text-xs">{getValue<string>()}</span> },
         {
             accessorKey: 'status',
             header: 'Status',
-            cell: ({ row }) => (
-                <Badge variant={row.original.status === 'Active' ? 'default' : 'secondary'} className="rounded-lg px-2 py-0.5">
-                    {row.original.status}
-                </Badge>
+            cell: ({ getValue }) => (
+                <span className={cn('inline-flex items-center gap-1.5 text-xs', getValue() === 'Active' ? 'text-foreground' : 'text-muted-foreground')}>
+                    <span className={cn('h-1.5 w-1.5 rounded-full', getValue() === 'Active' ? 'bg-stage-won' : 'bg-input')} />
+                    {getValue<string>()}
+                </span>
             ),
         },
-        {
-            accessorKey: 'type',
-            header: 'Type',
-            cell: ({ row }) => <span className="text-slate-500 text-sm">{row.original.type}</span>,
-        },
-        {
-            accessorKey: 'updatedAt',
-            header: 'Last Activity',
-            cell: ({ row }) => <span className="text-slate-500 text-sm">{new Date(row.original.updatedAt).toLocaleDateString()}</span>,
-        },
+        { accessorKey: 'createdAt', header: 'Added', cell: ({ getValue }) => <span className="text-xs text-muted-foreground">{shortDate(getValue<string>())}</span> },
         {
             id: 'actions',
-            cell: ({ row }) => (
-                <div className="flex items-center gap-2 justify-end">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-lg"
-                        onClick={() => window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${row.original.email}`, '_blank')}
-                    >
-                        <Mail size={16} className="text-slate-400" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-lg"
-                        onClick={() => {
-                            const phone = row.original.phone?.replace(/\D/g, '') || '';
-                            window.open(`https://wa.me/${phone}`, '_blank');
-                        }}
-                    >
-                        <Phone size={16} className="text-slate-400" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-lg text-rose-500 hover:text-rose-600 hover:bg-rose-50"
-                        onClick={() => {
-                            if (confirm(`Are you sure you want to delete ${row.original.firstName}?`)) {
-                                deleteMutation.mutate(row.original._id);
-                            }
-                        }}
-                    >
-                        <MoreHorizontal size={16} />
-                    </Button>
-                </div>
+            cell: ({ row: { original: c } }) => (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Contact actions">
+                            <MoreHorizontal size={15} />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem onClick={() => setForm({ open: true, contact: c })}><Pencil size={13} /> Edit</DropdownMenuItem>
+                        <DropdownMenuItem asChild><a href={`mailto:${c.email}`}><Mail size={13} /> Email</a></DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirm(`Delete ${c.firstName} ${c.lastName}?`) && remove.mutate(c._id)}>
+                            <Trash2 size={13} /> Delete
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             ),
         },
-    ];
+    ], [remove]);
 
     const table = useReactTable({
-        data: contacts, // Changed from DATA to contacts
+        data: visible,
         columns,
-        getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
+        state: { sorting, globalFilter: query },
         onSortingChange: setSorting,
+        globalFilterFn: (row, _id, value: string) => (row.getValue('name') as string).toLowerCase().includes(value.toLowerCase()),
+        getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
-        onColumnFiltersChange: setColumnFilters,
         getFilteredRowModel: getFilteredRowModel(),
-        state: {
-            sorting,
-            columnFilters,
-        },
+        getPaginationRowModel: getPaginationRowModel(),
+        initialState: { pagination: { pageSize: 25 } },
     });
 
-    const handleExport = () => {
-        if (!contacts.length) {
-            toast({ title: "Export Failed", description: "No contacts to export.", variant: "destructive" });
-            return;
-        }
-
-        const headers = ["First Name", "Last Name", "Company", "Email", "Phone", "Type", "Status", "Updated At"];
-        const csvContent = [
-            headers.join(","),
-            ...contacts.map((contact: Contact) => [
-                contact.firstName,
-                contact.lastName,
-                `"${contact.companyName}"`, // Escape CSV
-                contact.email,
-                contact.phone || "",
-                contact.type,
-                contact.status,
-                new Date(contact.updatedAt).toLocaleDateString()
-            ].join(","))
-        ].join("\n");
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `contacts_export_${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        toast({ title: "Export Successful", description: "Your contacts list has been downloaded." });
+    const exportCsv = () => {
+        const rows = table.getFilteredRowModel().rows.map((r) => r.original);
+        const url = URL.createObjectURL(new Blob([toCsv(rows)], { type: 'text/csv;charset=utf-8' }));
+        const a = Object.assign(document.createElement('a'), { href: url, download: `contacts-${new Date().toISOString().slice(0, 10)}.csv` });
+        a.click();
+        URL.revokeObjectURL(url);
     };
 
+    const filtered = table.getFilteredRowModel().rows.length;
+
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Contacts</h1>
-                    <p className="text-sm md:text-base text-slate-500">Manage your business and private contacts.</p>
+        <>
+            <PageHeader
+                title="Contacts"
+                description={`${contacts.length} people across ${new Set(contacts.map((c) => c.companyName).filter(Boolean)).size} companies.`}
+                actions={<>
+                    <Button variant="outline" onClick={exportCsv} disabled={!filtered}><Download size={14} /> Export</Button>
+                    <Button onClick={() => setForm({ open: true })}><Plus size={15} /> New contact</Button>
+                </>}
+            />
+
+            <ContactForm
+                open={form.open}
+                contact={form.contact}
+                saving={save.isPending}
+                onOpenChange={(open) => setForm((f) => ({ ...f, open }))}
+                onSubmit={(v) => save.mutate(v)}
+            />
+
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="relative w-full sm:max-w-xs">
+                    <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                        value={query}
+                        onChange={(e) => setParams(e.target.value ? { q: e.target.value } : {}, { replace: true })}
+                        placeholder="Filter by name, email or company"
+                        className="h-8 w-full rounded-md border bg-card pl-8 pr-3 text-[13px] outline-none focus:ring-2 focus:ring-ring/20"
+                    />
                 </div>
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <Button
-                        variant="outline"
-                        className="rounded-xl gap-2 flex-1 sm:flex-none"
-                        onClick={handleExport}
-                    >
-                        <Download size={18} />
-                        <span className="hidden xs:inline">Export</span>
-                    </Button>
-                    <Button
-                        className="rounded-xl shadow-lg shadow-primary/20 gap-2 flex-1 sm:flex-none"
-                        onClick={() => setIsFormOpen(true)}
-                    >
-                        <Plus size={18} />
-                        <span>Add Contact</span>
-                    </Button>
+                <div className="inline-flex rounded-md border bg-card p-0.5 text-xs">
+                    {STATUS_FILTERS.map((s) => (
+                        <button key={s} onClick={() => setStatus(s)} className={cn('rounded px-2.5 py-1', status === s ? 'bg-secondary font-medium' : 'text-muted-foreground hover:text-foreground')}>
+                            {s}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            <ContactForm
-                open={isFormOpen}
-                onOpenChange={setIsFormOpen}
-                onSubmit={(data) => createMutation.mutate({ ...data, owner: '507f1f77bcf86cd799439011' })}
-            />
-
-            <Card className="border-none shadow-sm rounded-3xl overflow-hidden bg-white">
-                <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="relative flex-1 w-full sm:max-w-sm">
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <Input
-                            placeholder="Filter by name..."
-                            value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
-                            onChange={(event: React.ChangeEvent<HTMLInputElement>) => table.getColumn('name')?.setFilterValue(event.target.value)}
-                            className="pl-10 h-10 border-slate-200 rounded-xl w-full"
-                        />
-                    </div>
-                    <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2 text-sm text-slate-500">
-                        <span>Showing {table.getFilteredRowModel().rows.length} contacts</span>
-                    </div>
-                </div>
-                <div className="overflow-x-auto relative">
-                    {isLoading ? (
-                        <div className="p-8 text-center text-slate-500">Loading contacts...</div>
-                    ) : (
-                        <Table>
-                            <TableHeader className="bg-slate-50/50">
-                                {table.getHeaderGroups().map((headerGroup) => (
-                                    <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                                        {headerGroup.headers.map((header) => (
-                                            <TableHead key={header.id} className="h-12 text-slate-500 font-bold px-6">
-                                                {header.isPlaceholder
-                                                    ? null
-                                                    : flexRender(header.column.columnDef.header, header.getContext())}
-                                            </TableHead>
-                                        ))}
-                                    </TableRow>
+            <div className="overflow-x-auto rounded-lg border bg-card">
+                <table className="w-full min-w-[720px] text-[13px]">
+                    <thead>
+                        {table.getHeaderGroups().map((g) => (
+                            <tr key={g.id} className="border-b">
+                                {g.headers.map((h) => {
+                                    const sort = h.column.getIsSorted();
+                                    return (
+                                        <th key={h.id} className="h-9 px-4 text-left text-xs font-medium text-muted-foreground">
+                                            {h.column.getCanSort() ? (
+                                                <button onClick={h.column.getToggleSortingHandler()} className="inline-flex items-center gap-1 hover:text-foreground">
+                                                    {flexRender(h.column.columnDef.header, h.getContext())}
+                                                    {sort === 'asc' && <ArrowUp size={11} />}
+                                                    {sort === 'desc' && <ArrowDown size={11} />}
+                                                </button>
+                                            ) : flexRender(h.column.columnDef.header, h.getContext())}
+                                        </th>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                    </thead>
+                    <tbody>
+                        {isLoading && <tr><td colSpan={columns.length} className="px-4 py-10 text-center text-muted-foreground">Loading…</td></tr>}
+                        {!isLoading && filtered === 0 && (
+                            <tr><td colSpan={columns.length} className="px-4 py-10 text-center text-muted-foreground">
+                                {contacts.length ? 'No contacts match this filter.' : 'No contacts yet. Add the first one.'}
+                            </td></tr>
+                        )}
+                        {table.getRowModel().rows.map((row) => (
+                            <tr key={row.id} className="border-b last:border-0 hover:bg-secondary/40">
+                                {row.getVisibleCells().map((cell) => (
+                                    <td key={cell.id} className="px-4 py-2.5">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
                                 ))}
-                            </TableHeader>
-                            <TableBody>
-                                {table.getRowModel().rows?.length ? (
-                                    table.getRowModel().rows.map((row) => (
-                                        <TableRow key={row.id} className="group hover:bg-slate-50/50 transition-colors border-slate-100">
-                                            {row.getVisibleCells().map((cell) => (
-                                                <TableCell key={cell.id} className="py-4 px-6">
-                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                </TableCell>
-                                            ))}
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={columns.length} className="h-24 text-center">
-                                            No results.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    )}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {table.getPageCount() > 1 && (
+                <div className="mt-3 flex items-center justify-end gap-2 text-xs text-muted-foreground">
+                    <span>Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}</span>
+                    <Button size="sm" variant="outline" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
+                    <Button size="sm" variant="outline" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
                 </div>
-                <div className="p-6 border-t border-slate-100 flex items-center justify-end space-x-2">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                        className="rounded-lg"
-                    >
-                        Previous
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                        className="rounded-lg"
-                    >
-                        Next
-                    </Button>
-                </div>
-            </Card>
-        </div>
+            )}
+        </>
     );
 }
