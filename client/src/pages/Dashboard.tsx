@@ -7,6 +7,7 @@ import { STAGE_STYLE } from '@/lib/stages';
 import { cn, shortDate, timeAgo } from '@/lib/utils';
 import { PageHeader } from '@/components/PageHeader';
 import { ActivityIcon } from '@/components/ActivityIcon';
+import { DealRiver } from '@/components/DealRiver';
 
 function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
     return (
@@ -83,7 +84,17 @@ export default function Dashboard() {
                 </div>
             )}
 
-            <div className="mt-8 grid gap-5 lg:grid-cols-5">
+            <section className="mt-8 rounded-lg border bg-card">
+                <div className="flex h-11 items-center justify-between border-b px-4">
+                    <h2 className="text-[13.5px] font-medium">Expected close, next 8 weeks</h2>
+                    <p className="text-xs text-muted-foreground">Size is deal value. Drag a deal to move its date.</p>
+                </div>
+                <div className="px-2 py-3">
+                    <DealRiver deals={deals} />
+                </div>
+            </section>
+
+            <div className="mt-5 grid gap-5 lg:grid-cols-5">
                 <div className="space-y-5 lg:col-span-3">
                     <Section title="Largest open deals" link={{ to: '/pipeline', label: 'Pipeline' }}>
                         {biggest.length === 0 ? (
