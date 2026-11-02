@@ -101,7 +101,7 @@ export function DealRiver({ deals }: { deals: Deal[] }) {
             <svg width={width} height={HEIGHT} className="block overflow-visible" role="group" aria-label="Open deals by expected close date">
                 {/* late zone */}
                 <rect x={0} y={PAD.top} width={PAD.left - 10} height={HEIGHT - PAD.top - PAD.bottom} rx={6} fill="hsl(var(--stage-lost) / 0.06)" />
-                <text x={(PAD.left - 10) / 2} y={HEIGHT - 8} textAnchor="middle" className="fill-stage-lost text-[10px] font-medium">
+                <text x={(PAD.left - 10) / 2} y={PAD.top + 14} textAnchor="middle" className="fill-stage-lost text-[10px] font-medium">
                     Late{late ? ` · ${late}` : ''}
                 </text>
                 {weeks.map((w) => (

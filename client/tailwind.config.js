@@ -6,7 +6,7 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['"Inter Tight Variable"', 'system-ui', 'sans-serif'],
+                sans: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
                 mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
             },
             borderRadius: {
