@@ -1,17 +1,16 @@
 {
-  "name": "server",
+  "name": "nexus-crm-server",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Express + MongoDB API for Nexus CRM",
+  "main": "dist/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "seed": "ts-node scripts/seed.ts",
+    "typecheck": "tsc --noEmit"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
