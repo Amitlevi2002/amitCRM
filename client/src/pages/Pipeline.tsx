@@ -1,230 +1,181 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { DealForm } from '@/components/forms/DealForm';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-    DndContext,
-    closestCorners,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    DragStartEvent,
-    DragOverEvent,
-    DragEndEvent,
+    DndContext, DragOverlay, KeyboardSensor, PointerSensor, TouchSensor,
+    useDraggable, useDroppable, useSensor, useSensors,
+    type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core';
-import {
-    sortableKeyboardCoordinates,
-} from '@dnd-kit/sortable';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { api } from '@/lib/api';
+import { STAGES, type Deal, type Stage } from '@/lib/types';
+import { STAGE_PROBABILITY, STAGE_STYLE } from '@/lib/stages';
+import { formatMoney, summarizeStages } from '@/lib/metrics';
+import { cn, shortDate } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/PageHeader';
+import { DealForm, type DealFormValues } from '@/components/forms/DealForm';
 
-const COLORS = {
-    'Prospecting': 'border-t-blue-500',
-    'Negotiation': 'border-t-amber-500',
-    'Closed Won': 'border-t-emerald-500',
-};
+function DealCard({ deal, onEdit, onDelete, overlay }: { deal: Deal; onEdit?: () => void; onDelete?: () => void; overlay?: boolean }) {
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: deal._id, disabled: overlay });
+    const closed = deal.stage === 'Closed Won' || deal.stage === 'Lost';
+    const overdue = !closed && deal.expectedCloseDate && new Date(deal.expectedCloseDate) < new Date();
 
-// Deal interface removed
+    return (
+        <div
+            ref={setNodeRef}
+            {...attributes}
+            {...listeners}
+            className={cn(
+                'group cursor-grab touch-none rounded-md border bg-card p-3 text-[13px] active:cursor-grabbing',
+                isDragging && 'opacity-30',
+                overlay && 'rotate-[1.5deg] shadow-lg'
+            )}
+        >
+            <div className="flex items-start justify-between gap-2">
+                <p className="font-medium leading-snug">{deal.title}</p>
+                {onEdit && (
+                    <div className="-mr-1 -mt-0.5 flex shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                        <button onPointerDown={(e) => e.stopPropagation()} onClick={onEdit} className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="Edit deal">
+                            <Pencil size={12} />
+                        </button>
+                        <button onPointerDown={(e) => e.stopPropagation()} onClick={onDelete} className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-destructive" aria-label="Delete deal">
+                            <Trash2 size={12} />
+                        </button>
+                    </div>
+                )}
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">{deal.companyName}</p>
+            <div className="mt-3 flex items-center justify-between">
+                <span className="num font-medium">{formatMoney(deal.estimatedValue)}</span>
+                <span className="num text-[11px] text-muted-foreground">
+                    {!closed && `${deal.probability}%`}
+                    {deal.expectedCloseDate && !closed && ' · '}
+                    {deal.expectedCloseDate && !closed && (
+                        <span className={cn(overdue && 'text-stage-lost')}>{shortDate(deal.expectedCloseDate)}</span>
+                    )}
+                </span>
+            </div>
+        </div>
+    );
+}
 
-// Initial deals removed
-
-const COLUMNS = ['Prospecting', 'Negotiation', 'Closed Won'];
+function Column({ stage, deals, total, onAdd, children }: { stage: Stage; deals: number; total: number; onAdd: () => void; children: React.ReactNode }) {
+    const { setNodeRef, isOver } = useDroppable({ id: stage });
+    return (
+        <div className="flex w-[272px] shrink-0 flex-col lg:w-auto lg:min-w-0 lg:flex-1">
+            <div className="mb-2 flex items-center justify-between px-1">
+                <div className="flex items-center gap-2 text-[13px]">
+                    <span className={cn('h-2 w-2 rounded-full', STAGE_STYLE[stage].dot)} />
+                    <span className="font-medium">{stage}</span>
+                    <span className="num text-xs text-muted-foreground">{deals}</span>
+                </div>
+                <span className="num text-xs text-muted-foreground">{formatMoney(total)}</span>
+            </div>
+            <div
+                ref={setNodeRef}
+                className={cn(
+                    'flex min-h-[420px] flex-1 flex-col gap-2 rounded-lg border border-transparent bg-secondary/60 p-2 transition-colors',
+                    isOver && 'border-dashed border-primary/40 bg-primary/5'
+                )}
+            >
+                {children}
+                <button onClick={onAdd} className="flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-card hover:text-foreground">
+                    <Plus size={13} /> Add deal
+                </button>
+            </div>
+        </div>
+    );
+}
 
 export default function Pipeline() {
     const { toast } = useToast();
     const queryClient = useQueryClient();
-    const [isFormOpen, setIsFormOpen] = useState(false);
-    const [editingDeal, setEditingDeal] = useState<any>(null);
-    const [, setActiveId] = useState<string | null>(null);
+    const [form, setForm] = useState<{ open: boolean; deal?: Deal | null; stage?: Stage }>({ open: false });
+    const [dragging, setDragging] = useState<Deal | null>(null);
 
-    const { data: leads = [], isLoading } = useQuery({
-        queryKey: ['leads'],
-        queryFn: api.leads.list,
+    const { data: deals = [], isLoading } = useQuery({ queryKey: ['leads'], queryFn: api.leads.list });
+    const refresh = () => queryClient.invalidateQueries({ queryKey: ['leads'] });
+    const onError = (e: Error) => toast({ title: 'Couldn’t save', description: e.message, variant: 'destructive' });
+
+    const save = useMutation({
+        mutationFn: (v: DealFormValues) => (form.deal ? api.leads.update(form.deal._id, v) : api.leads.create(v)),
+        onSuccess: () => { refresh(); setForm({ open: false }); },
+        onError,
     });
 
-    const createMutation = useMutation({
-        mutationFn: api.leads.create,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['leads'] });
-            toast({ title: "Success", description: "Deal created successfully." });
-            setIsFormOpen(false);
+    const move = useMutation({
+        mutationFn: ({ id, stage }: { id: string; stage: Stage }) => api.leads.update(id, { stage, probability: STAGE_PROBABILITY[stage] }),
+        // Move the card immediately; the server answer only confirms it.
+        onMutate: async ({ id, stage }) => {
+            await queryClient.cancelQueries({ queryKey: ['leads'] });
+            const previous = queryClient.getQueryData<Deal[]>(['leads']);
+            queryClient.setQueryData<Deal[]>(['leads'], (old = []) =>
+                old.map((d) => (d._id === id ? { ...d, stage, probability: STAGE_PROBABILITY[stage] } : d))
+            );
+            return { previous };
         },
+        onError: (e: Error, _v, ctx) => { queryClient.setQueryData(['leads'], ctx?.previous); onError(e); },
+        onSettled: refresh,
     });
 
-    const updateMutation = useMutation({
-        mutationFn: ({ id, data }: { id: string, data: any }) => api.leads.update(id, data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['leads'] });
-            toast({ title: "Updated", description: "Deal details updated." });
-            setIsFormOpen(false);
-            setEditingDeal(null);
-        },
-    });
-
-    const deleteMutation = useMutation({
+    const remove = useMutation({
         mutationFn: api.leads.delete,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['leads'] });
-            toast({ title: "Deleted", description: "Deal removed." });
-        },
+        onSuccess: () => { refresh(); toast({ title: 'Deal deleted' }); },
+        onError,
     });
 
     const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8, // Requires 8px movement to start drag, allowing tap/scroll otherwise
-            },
-        }),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
+        useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
+        useSensor(KeyboardSensor)
     );
 
-    const onDragStart = (event: DragStartEvent) => {
-        setActiveId(event.active.id as string);
+    const onDragStart = (e: DragStartEvent) => setDragging(deals.find((d) => d._id === e.active.id) ?? null);
+    const onDragEnd = ({ active, over }: DragEndEvent) => {
+        setDragging(null);
+        const deal = deals.find((d) => d._id === active.id);
+        const stage = over?.id as Stage | undefined;
+        if (deal && stage && deal.stage !== stage) move.mutate({ id: deal._id, stage });
     };
 
-    const onDragOver = (event: DragOverEvent) => {
-        const { active, over } = event;
-        if (!over) return;
-
-        const activeDeal = leads.find((d: any) => d._id === active.id);
-        const overId = over.id as string;
-
-        // Check if dragging over a column or another card
-        const isOverColumn = COLUMNS.includes(overId);
-
-        if (activeDeal && isOverColumn && activeDeal.stage !== overId) {
-            updateMutation.mutate({
-                id: activeDeal._id,
-                data: { ...activeDeal, stage: overId }
-            });
-        }
-    };
-
-    const onDragEnd = (_event: DragEndEvent) => {
-        setActiveId(null);
-    };
+    const summary = summarizeStages(deals);
 
     return (
-        <div className="h-full flex flex-col space-y-6 md:space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Deals Pipeline</h1>
-                    <p className="text-sm md:text-base text-slate-500">Manage your sales opportunities and stages.</p>
-                </div>
-                <Button
-                    className="rounded-xl shadow-lg shadow-primary/20 gap-2 w-full sm:w-auto"
-                    onClick={() => setIsFormOpen(true)}
-                >
-                    <Plus size={18} />
-                    <span>Add Deal</span>
-                </Button>
-            </div>
-
-            <DealForm
-                open={isFormOpen}
-                initialData={editingDeal}
-                onOpenChange={(open) => {
-                    setIsFormOpen(open);
-                    if (!open) setEditingDeal(null);
-                }}
-                onSubmit={(data) => {
-                    if (editingDeal) {
-                        updateMutation.mutate({ id: editingDeal._id, data });
-                    } else {
-                        createMutation.mutate({ ...data, assignedTo: '507f1f77bcf86cd799439011' });
-                    }
-                }}
+        <>
+            <PageHeader
+                title="Pipeline"
+                description="Drag a deal to move it between stages."
+                actions={<Button onClick={() => setForm({ open: true })}><Plus size={15} /> New deal</Button>}
             />
 
-            <DndContext
-                sensors={sensors}
-                collisionDetection={closestCorners}
-                onDragStart={onDragStart}
-                onDragOver={onDragOver}
-                onDragEnd={onDragEnd}
-            >
-                <div className="flex gap-6 overflow-x-auto pb-4 h-full">
-                    {COLUMNS.map((column) => (
-                        <div key={column} className="flex-1 min-w-[320px] glass rounded-3xl p-4 flex flex-col">
-                            <div className="flex items-center justify-between mb-4 px-2">
-                                <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                                    {column}
-                                    <span className="text-xs bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full">
-                                        {leads.filter((d: any) => d.stage === column).length}
-                                    </span>
-                                </h3>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                                    <Plus size={16} className="text-slate-400" />
-                                </Button>
-                            </div>
+            <DealForm
+                open={form.open}
+                deal={form.deal}
+                defaultStage={form.stage}
+                saving={save.isPending}
+                onOpenChange={(open) => setForm((f) => ({ ...f, open }))}
+                onSubmit={(v) => save.mutate(v)}
+            />
 
-                            <div className="flex-1 space-y-4 overflow-y-auto min-h-[200px]">
-                                {isLoading ? (
-                                    <div className="p-4 text-center text-slate-400 text-sm">Loading...</div>
-                                ) : (
-                                    leads
-                                        .filter((deal: any) => deal.stage === column)
-                                        .map((deal: any) => (
-                                            <Card
-                                                key={deal._id}
-                                                className={cn(
-                                                    "border-none shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing rounded-2xl border-t-4",
-                                                    COLORS[column as keyof typeof COLORS]
-                                                )}
-                                            >
-                                                <CardContent className="p-4">
-                                                    <div className="flex items-start justify-between mb-2">
-                                                        <h4 className="font-semibold text-slate-900 truncate pr-2 flex-1">{deal.title}</h4>
-                                                        <div className="flex items-center gap-1">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-6 w-6 text-slate-400 hover:text-blue-500 hover:bg-blue-50"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setEditingDeal(deal);
-                                                                    setIsFormOpen(true);
-                                                                }}
-                                                            >
-                                                                <Pencil size={14} />
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-6 w-6 text-slate-400 hover:text-rose-500 hover:bg-rose-50"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    if (confirm(`Delete ${deal.title}?`)) {
-                                                                        deleteMutation.mutate(deal._id);
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                    <p className="text-xs text-slate-500 mb-3">{deal.companyName}</p>
-                                                    <div className="flex items-center justify-between mt-auto">
-                                                        <span className="text-sm font-bold text-slate-900">${deal.estimatedValue?.toLocaleString()}</span>
-                                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
-                                                            {deal.title.charAt(0)}
-                                                        </div>
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        ))
-                                )}
-                            </div>
-                        </div>
+            <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
+                <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-4 md:-mx-8 md:px-8">
+                    {STAGES.map((stage, i) => (
+                        <Column key={stage} stage={stage} deals={summary[i].count} total={summary[i].value} onAdd={() => setForm({ open: true, stage })}>
+                            {isLoading && <div className="h-20 animate-pulse rounded-md bg-card" />}
+                            {deals.filter((d) => d.stage === stage).map((deal) => (
+                                <DealCard
+                                    key={deal._id}
+                                    deal={deal}
+                                    onEdit={() => setForm({ open: true, deal })}
+                                    onDelete={() => confirm(`Delete “${deal.title}”?`) && remove.mutate(deal._id)}
+                                />
+                            ))}
+                        </Column>
                     ))}
                 </div>
+                <DragOverlay dropAnimation={null}>{dragging && <DealCard deal={dragging} overlay />}</DragOverlay>
             </DndContext>
-        </div>
+        </>
     );
 }
