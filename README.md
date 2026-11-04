@@ -19,6 +19,10 @@ A small sales CRM built to feel like a trading terminal: amber on black, monospa
 - **Activity log.** Calls, meetings, emails and notes linked to a contact, grouped by day.
 - **Keyboard first.** <kbd>/</kbd> searches, <kbd>g</kbd> then <kbd>o</kbd> / <kbd>p</kbd> / <kbd>c</kbd> / <kbd>a</kbd> jumps between screens, <kbd>?</kbd> lists every shortcut. A status line at the bottom keeps the pipeline totals in view.
 
+## Accessibility, languages and legal pages
+
+Every page has an accessibility menu (text size, high contrast, highlighted links, readable font, stopped animations, grayscale), a skip link and full keyboard use, built toward Israeli Standard 5568 (WCAG 2.0 AA). The screens were checked with axe. A button switches between Hebrew and English, including the page direction, and there are privacy, terms and accessibility statement pages (`public/site-kit.js`, `public/site-i18n.js`).
+
 ## Stack
 
 | | |
